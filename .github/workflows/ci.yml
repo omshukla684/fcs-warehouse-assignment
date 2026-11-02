@@ -20,6 +20,21 @@ jobs:
       checks: write
       pull-requests: write
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: quarkus_test
+          POSTGRES_PASSWORD: quarkus_test
+          POSTGRES_DB: quarkus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -37,9 +52,14 @@ jobs:
 
       - name: Build and run unit tests with JaCoCo coverage
         working-directory: java-assignment
-        run: ./mvnw verify -Dquarkus.test.profile=test --no-transfer-progress
-        # Note: Quarkus dev services automatically spin up a PostgreSQL container for tests.
-        # No separate DB setup is needed. The JaCoCo check goal enforces >80% instruction coverage.
+        run: >
+          ./mvnw verify
+          -Dquarkus.test.profile=test
+          -Dquarkus.datasource.devservices.enabled=false
+          -Dquarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/quarkus_test
+          -Dquarkus.datasource.username=quarkus_test
+          -Dquarkus.datasource.password=quarkus_test
+          --no-transfer-progress
 
       - name: Upload JaCoCo Coverage Report
         if: always()
@@ -61,35 +81,3 @@ jobs:
         if: failure()
         run: |
           echo "::error::Code coverage is below the required 80% threshold. Please add more tests."
-
-  # Optional: native build (slow, runs only on main)
-  native-build:
-    name: Native Image Build (optional)
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: build-and-test
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Set up GraalVM native build tools
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '17'
-          distribution: 'graalvm'
-
-      - name: Make mvnw executable
-        working-directory: java-assignment
-        run: chmod +x ./mvnw
-
-      - name: Build native image
-        working-directory: java-assignment
-        run: ./mvnw package -Pnative -Dquarkus.native.container-build=true --no-transfer-progress

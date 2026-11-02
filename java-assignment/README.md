@@ -10,15 +10,15 @@ A Quarkus-based monolith for managing Warehouses, Stores, Products, and their fu
 
 | Task | Status |
 |---|---|
-| Task 1: `LocationGateway.resolveByIdentifier` | ✅ Implemented |
-| Task 2: `StoreResource` post-commit legacy calls | ✅ Implemented (CDI `AFTER_SUCCESS` events) |
-| Task 3: Warehouse CRUD + all business validations | ✅ Implemented |
-| Task 3: Warehouse API endpoints | ✅ Implemented |
-| BONUS: Warehouse-Product-Store fulfillment association | ✅ Implemented |
-| Unit Tests (80%+ coverage via JaCoCo) | ✅ Implemented |
-| CI/CD Pipeline (GitHub Actions) | ✅ Implemented |
-| QUESTIONS.md answered | ✅ Complete |
-| CASE_STUDY.md answered | ✅ Complete |
+| Task 1: `LocationGateway.resolveByIdentifier` | Completed |
+| Task 2: `StoreResource` post-commit legacy calls | Completed (CDI `AFTER_SUCCESS` events) |
+| Task 3: Warehouse CRUD + all business validations | Completed |
+| Task 3: Warehouse API endpoints | Completed |
+| BONUS: Warehouse-Product-Store fulfillment association | Completed |
+| Unit Tests (80%+ coverage via JaCoCo) | Completed |
+| CI/CD Pipeline (GitHub Actions) | Completed |
+| QUESTIONS.md answered | Completed |
+| CASE_STUDY.md answered | Completed |
 
 ---
 

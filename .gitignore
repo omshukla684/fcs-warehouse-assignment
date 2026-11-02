@@ -21,6 +21,7 @@ out/
 
 # Testing
 coverage/
+scratch/
 
 # IDE specific files
 .idea/

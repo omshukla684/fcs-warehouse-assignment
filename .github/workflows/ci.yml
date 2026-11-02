@@ -57,6 +57,7 @@ jobs:
         run: >
           ./mvnw verify
           -Dquarkus.test.profile=test
+          -Dquarkus.datasource.db-kind=postgresql
           -Dquarkus.datasource.devservices.enabled=false
           -Dquarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/quarkus_test
           -Dquarkus.datasource.username=quarkus_test

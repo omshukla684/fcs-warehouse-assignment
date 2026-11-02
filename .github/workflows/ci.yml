@@ -5,10 +5,12 @@ on:
     branches: [ "main", "master", "develop" ]
     paths:
       - "java-assignment/**"
+      - ".github/workflows/**"
   pull_request:
     branches: [ "main", "master", "develop" ]
     paths:
       - "java-assignment/**"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 jobs:

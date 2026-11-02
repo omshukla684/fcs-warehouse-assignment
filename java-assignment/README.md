@@ -1,5 +1,7 @@
 # Warehouse Colocation Management System
 
+[![CI - Build, Test & Coverage](https://github.com/omshukla684/fcs-warehouse-assignment/actions/workflows/ci.yml/badge.svg)](https://github.com/omshukla684/fcs-warehouse-assignment/actions/workflows/ci.yml)
+
 A Quarkus-based monolith for managing Warehouses, Stores, Products, and their fulfillment relationships.
 
 ---

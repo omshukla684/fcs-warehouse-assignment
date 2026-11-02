@@ -21,7 +21,6 @@ import jakarta.ws.rs.core.Response;
 @Path("/warehouse/{warehouseCode}/store/{storeIdentifier}/product/{productIdentifier}")
 @RequestScoped
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class FulfillmentResource {
 
   @Inject AssociateWarehouseProductStoreUseCase associateUseCase;

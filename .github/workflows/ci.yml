@@ -15,6 +15,10 @@ jobs:
   build-and-test:
     name: Build, Unit Test & Coverage Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout source code
@@ -47,6 +51,7 @@ jobs:
 
       - name: Publish Test Results
         if: always()
+        continue-on-error: true
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: java-assignment/target/surefire-reports/*.xml

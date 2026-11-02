@@ -27,6 +27,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Make mvnw executable
+        working-directory: java-assignment
+        run: chmod +x ./mvnw
+
       - name: Build and run unit tests with JaCoCo coverage
         working-directory: java-assignment
         run: ./mvnw verify -Dquarkus.test.profile=test --no-transfer-progress
@@ -76,6 +80,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'graalvm'
+
+      - name: Make mvnw executable
+        working-directory: java-assignment
+        run: chmod +x ./mvnw
 
       - name: Build native image
         working-directory: java-assignment

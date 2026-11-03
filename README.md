@@ -248,20 +248,25 @@ The build **enforces ≥ 80% instruction coverage** via JaCoCo. If coverage drop
 
 Coverage report is generated at: `target/site/jacoco/index.html`
 
-**Test structure:**
+**Test structure (67 tests, 0 failures):**
 ```
 tests/
 ├── warehouses/domain/usecases/
-│   ├── CreateWarehouseUseCaseTest     (7 tests)
-│   ├── ReplaceWarehouseUseCaseTest    (6 tests)
-│   ├── ArchiveWarehouseUseCaseTest    (2 tests)
+│   ├── CreateWarehouseUseCaseTest                 (7 tests)
+│   ├── ReplaceWarehouseUseCaseTest                (6 tests)
+│   ├── ArchiveWarehouseUseCaseTest                (3 tests)
 │   └── AssociateWarehouseProductStoreUseCaseTest (6 tests)
 ├── warehouses/domain/validator/
-│   ├── WarehouseValidatorTest         (15 tests)
-│   └── FulfillmentValidatorTest       (12 tests)
-└── stores/
-    └── StoreEventHandlerTest          (2 tests)
+│   ├── WarehouseValidatorTest                     (21 tests)
+│   └── FulfillmentValidatorTest                   (11 tests)
+├── stores/
+│   └── StoreEventHandlerTest                      (2 tests)
+├── location/
+│   └── LocationGatewayTest                        (10 tests)
+└── products/
+    └── ProductEndpointTest                        (1 test)
 ```
+
 
 ---
 

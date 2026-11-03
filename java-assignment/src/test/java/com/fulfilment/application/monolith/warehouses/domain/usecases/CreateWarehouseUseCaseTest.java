@@ -12,6 +12,7 @@ import com.fulfilment.application.monolith.warehouses.domain.models.Location;
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+import com.fulfilment.application.monolith.warehouses.domain.validator.WarehouseValidator;
 import jakarta.ws.rs.WebApplicationException;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +29,8 @@ public class CreateWarehouseUseCaseTest {
   void setUp() {
     warehouseStore = mock(WarehouseStore.class);
     locationResolver = mock(LocationResolver.class);
-    useCase = new CreateWarehouseUseCase(warehouseStore, locationResolver);
+    // Use real validator so validation logic is also exercised in these tests
+    useCase = new CreateWarehouseUseCase(warehouseStore, locationResolver, new WarehouseValidator());
   }
 
   private Warehouse buildWarehouse(String code, String location, int capacity, int stock) {

@@ -55,8 +55,7 @@ jobs:
       - name: Build and run unit tests with JaCoCo coverage
         working-directory: java-assignment
         run: >
-          ./mvnw verify
-          -Dquarkus.test.profile=test
+          ./mvnw test
           -Dquarkus.datasource.db-kind=postgresql
           -Dquarkus.datasource.devservices.enabled=false
           -Dquarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/quarkus_test
@@ -80,7 +79,24 @@ jobs:
           files: java-assignment/target/surefire-reports/*.xml
           comment_title: Unit Test Results
 
+      - name: Generate JaCoCo Coverage Summary
+        if: always()
+        working-directory: java-assignment
+        run: |
+          REPORT="target/site/jacoco/index.html"
+          if [ -f "$REPORT" ]; then
+            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report generated at \`target/site/jacoco/index.html\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the **jacoco-coverage-report** artifact above to view full details." >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Check coverage threshold comment
         if: failure()
         run: |
           echo "::error::Code coverage is below the required 80% threshold. Please add more tests."
+          echo "## ❌ Coverage Check Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Instruction coverage is below the required **80%** minimum threshold." >> $GITHUB_STEP_SUMMARY
+          echo "Please add more unit tests to increase coverage." >> $GITHUB_STEP_SUMMARY

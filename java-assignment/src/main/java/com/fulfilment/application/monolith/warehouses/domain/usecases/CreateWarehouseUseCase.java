@@ -4,86 +4,53 @@ import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+import com.fulfilment.application.monolith.warehouses.domain.validator.WarehouseValidator;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.ws.rs.WebApplicationException;
 import java.util.List;
 
+/**
+ * Use case: create a new active warehouse.
+ *
+ * <p>Delegates all business-rule checks to {@link WarehouseValidator} and persistence to
+ * {@link WarehouseStore}, keeping this class focused solely on orchestrating the workflow.
+ */
 @ApplicationScoped
 public class CreateWarehouseUseCase implements CreateWarehouseOperation {
 
   private final WarehouseStore warehouseStore;
   private final LocationResolver locationResolver;
+  private final WarehouseValidator warehouseValidator;
 
-  public CreateWarehouseUseCase(WarehouseStore warehouseStore, LocationResolver locationResolver) {
+  public CreateWarehouseUseCase(
+      WarehouseStore warehouseStore,
+      LocationResolver locationResolver,
+      WarehouseValidator warehouseValidator) {
     this.warehouseStore = warehouseStore;
     this.locationResolver = locationResolver;
+    this.warehouseValidator = warehouseValidator;
   }
 
   @Override
   public void create(Warehouse warehouse) {
 
-    // 1. Business Unit Code Uniqueness:
-    //    Ensure that no active warehouse already exists with this businessUnitCode
+    // 1. Business Unit Code Uniqueness
     var existing = warehouseStore.findByBusinessUnitCode(warehouse.businessUnitCode);
-    if (existing != null) {
-      throw new WebApplicationException(
-          "A warehouse with businessUnitCode '"
-              + warehouse.businessUnitCode
-              + "' already exists.",
-          400);
-    }
+    warehouseValidator.validateUniqueBusinessUnitCode(warehouse.businessUnitCode, existing);
 
-    // 2. Location Validation:
-    //    The warehouse location must correspond to a valid, known location
+    // 2. Location Validation
     var location = locationResolver.resolveByIdentifier(warehouse.location);
-    if (location == null) {
-      throw new WebApplicationException(
-          "Location '" + warehouse.location + "' is not a valid location.", 400);
-    }
+    warehouseValidator.validateLocationExists(warehouse.location, location);
 
-    // 3. Warehouse Creation Feasibility:
-    //    Check if we have not reached the maximum number of warehouses for this location
+    // 3. Warehouse Count Feasibility
     List<Warehouse> activeAtLocation = warehouseStore.findActiveByLocation(warehouse.location);
-    if (activeAtLocation.size() >= location.maxNumberOfWarehouses) {
-      throw new WebApplicationException(
-          "Location '"
-              + warehouse.location
-              + "' has already reached its maximum number of warehouses ("
-              + location.maxNumberOfWarehouses
-              + ").",
-          400);
-    }
+    warehouseValidator.validateWarehouseCountAtLocation(location, activeAtLocation);
 
-    // 4. Capacity Validation:
-    //    New warehouse capacity must not exceed location's maxCapacity
-    int totalCapacityAtLocation =
-        activeAtLocation.stream().mapToInt(w -> w.capacity).sum() + warehouse.capacity;
-    if (totalCapacityAtLocation > location.maxCapacity) {
-      throw new WebApplicationException(
-          "Adding this warehouse would exceed the maximum total capacity of location '"
-              + warehouse.location
-              + "'. Max capacity: "
-              + location.maxCapacity
-              + ", current total: "
-              + (totalCapacityAtLocation - warehouse.capacity)
-              + ", requested: "
-              + warehouse.capacity
-              + ".",
-          400);
-    }
+    // 4. Total Capacity at Location
+    warehouseValidator.validateTotalCapacityAtLocation(
+        location, activeAtLocation, warehouse.capacity);
 
-    // 5. Stock Validation:
-    //    Stock must not exceed warehouse capacity
-    if (warehouse.stock != null && warehouse.capacity != null
-        && warehouse.stock > warehouse.capacity) {
-      throw new WebApplicationException(
-          "Warehouse stock ("
-              + warehouse.stock
-              + ") cannot exceed warehouse capacity ("
-              + warehouse.capacity
-              + ").",
-          400);
-    }
+    // 5. Stock / Capacity Coherence
+    warehouseValidator.validateStockWithinCapacity(warehouse);
 
     // All validations passed – persist the warehouse
     warehouseStore.create(warehouse);

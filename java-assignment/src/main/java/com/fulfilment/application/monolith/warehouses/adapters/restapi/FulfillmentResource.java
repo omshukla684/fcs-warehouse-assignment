@@ -1,8 +1,10 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
 import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseFulfillment;
-import com.fulfilment.application.monolith.warehouses.domain.usecases.AssociateWarehouseProductStoreUseCase;
+import com.fulfilment.application.monolith.warehouses.domain.ports.AssociateFulfillmentOperation;
+import com.fulfilment.application.monolith.warehouses.fulfillment.event.FulfillmentCreatedEvent;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -13,25 +15,30 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 /**
- * REST resource for the bonus feature: associating Warehouses as fulfillment units of Products to
- * Stores.
+ * REST adapter (inbound) for the fulfillment association feature.
  *
- * <p>POST /warehouse/{warehouseCode}/store/{storeIdentifier}/product/{productIdentifier}
+ * <p>Endpoint: {@code POST /warehouse/{warehouseCode}/store/{storeIdentifier}/product/{productIdentifier}}
+ *
+ * <p>Fires a {@link FulfillmentCreatedEvent} after the use case completes, enabling decoupled
+ * downstream reactions (e.g. notifications, audit logs).
  */
 @Path("/warehouse/{warehouseCode}/store/{storeIdentifier}/product/{productIdentifier}")
 @RequestScoped
 @Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class FulfillmentResource {
 
-  @Inject AssociateWarehouseProductStoreUseCase associateUseCase;
+  @Inject AssociateFulfillmentOperation associateFulfillmentOperation;
+
+  @Inject Event<FulfillmentCreatedEvent> fulfillmentCreatedEvent;
 
   /**
    * Associates a product with a warehouse-store combination.
    *
-   * @param warehouseCode   business unit code of the warehouse
-   * @param storeIdentifier store name / identifier
+   * @param warehouseCode     business unit code of the warehouse
+   * @param storeIdentifier   store name / identifier
    * @param productIdentifier product name / identifier
-   * @return the updated fulfillment record
+   * @return the updated fulfillment record (HTTP 201)
    */
   @POST
   public Response associate(
@@ -40,7 +47,11 @@ public class FulfillmentResource {
       @PathParam("productIdentifier") String productIdentifier) {
 
     WarehouseFulfillment result =
-        associateUseCase.associate(warehouseCode, storeIdentifier, productIdentifier);
-    return Response.ok(result).status(201).build();
+        associateFulfillmentOperation.associate(warehouseCode, storeIdentifier, productIdentifier);
+
+    // Fire domain event – observers may react after the transaction commits
+    fulfillmentCreatedEvent.fire(new FulfillmentCreatedEvent(result));
+
+    return Response.status(201).entity(result).build();
   }
 }

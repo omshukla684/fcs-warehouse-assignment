@@ -1,18 +1,22 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import com.fulfilment.application.monolith.warehouses.adapters.database.DbWarehouseFulfillment;
-import com.fulfilment.application.monolith.warehouses.adapters.database.FulfillmentRepository;
 import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseFulfillment;
+import com.fulfilment.application.monolith.warehouses.domain.ports.AssociateFulfillmentOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.FulfillmentStore;
+import com.fulfilment.application.monolith.warehouses.domain.validator.FulfillmentValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.WebApplicationException;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 /**
- * Associates a Product as being fulfilled by a Warehouse for a given Store, while enforcing:
+ * Use case: associate a Product as being fulfilled by a Warehouse for a given Store.
  *
+ * <p>Delegates all business-constraint validation to {@link FulfillmentValidator} and all
+ * persistence to {@link FulfillmentStore}, keeping this class focused on orchestrating the
+ * workflow.
+ *
+ * <p>Constraints (see {@link WarehouseFulfillment} constants):
  * <ol>
  *   <li>Max 2 different Warehouses per Product per Store</li>
  *   <li>Max 3 different Warehouses per Store</li>
@@ -20,97 +24,54 @@ import java.util.stream.Collectors;
  * </ol>
  */
 @ApplicationScoped
-public class AssociateWarehouseProductStoreUseCase {
+public class AssociateWarehouseProductStoreUseCase implements AssociateFulfillmentOperation {
 
-  private final FulfillmentRepository fulfillmentRepository;
+  private final FulfillmentStore fulfillmentStore;
+  private final FulfillmentValidator fulfillmentValidator;
 
-  public AssociateWarehouseProductStoreUseCase(FulfillmentRepository fulfillmentRepository) {
-    this.fulfillmentRepository = fulfillmentRepository;
+  public AssociateWarehouseProductStoreUseCase(
+      FulfillmentStore fulfillmentStore, FulfillmentValidator fulfillmentValidator) {
+    this.fulfillmentStore = fulfillmentStore;
+    this.fulfillmentValidator = fulfillmentValidator;
   }
 
+  @Override
   @Transactional
   public WarehouseFulfillment associate(
       String warehouseCode, String storeIdentifier, String productIdentifier) {
 
-    // --- Constraint 2: Max 3 warehouses per store ---
-    List<DbWarehouseFulfillment> warehousesForStore =
-        fulfillmentRepository.findByStore(storeIdentifier);
-    Set<String> distinctWarehousesInStore =
-        warehousesForStore.stream()
-            .map(f -> f.warehouseCode)
-            .collect(Collectors.toSet());
-    // If this warehouse is new to this store, check the limit
-    if (!distinctWarehousesInStore.contains(warehouseCode)
-        && distinctWarehousesInStore.size() >= WarehouseFulfillment.MAX_WAREHOUSES_PER_STORE) {
-      throw new WebApplicationException(
-          "Store '"
-              + storeIdentifier
-              + "' is already fulfilled by the maximum number of warehouses ("
-              + WarehouseFulfillment.MAX_WAREHOUSES_PER_STORE
-              + ").",
-          400);
-    }
+    // Load existing data
+    List<WarehouseFulfillment> forStore = fulfillmentStore.findByStore(storeIdentifier);
+    List<WarehouseFulfillment> forWarehouse = fulfillmentStore.findByWarehouse(warehouseCode);
+    Optional<WarehouseFulfillment> existing =
+        fulfillmentStore.findByWarehouseAndStore(warehouseCode, storeIdentifier);
 
-    // --- Constraint 1: Max 2 warehouses per product per store ---
-    long warehousesForProductInStore =
-        warehousesForStore.stream()
-            .filter(f -> f.productIdentifiers.contains(productIdentifier))
-            .count();
-    // If this warehouse doesn't yet carry this product for this store
-    boolean thisWarehouseAlreadyCarriesProduct =
-        fulfillmentRepository
-            .findByWarehouseAndStore(warehouseCode, storeIdentifier)
-            .map(f -> f.productIdentifiers.contains(productIdentifier))
-            .orElse(false);
-    if (!thisWarehouseAlreadyCarriesProduct
-        && warehousesForProductInStore
-            >= WarehouseFulfillment.MAX_WAREHOUSES_PER_PRODUCT_PER_STORE) {
-      throw new WebApplicationException(
-          "Product '"
-              + productIdentifier
-              + "' is already fulfilled by the maximum number of warehouses ("
-              + WarehouseFulfillment.MAX_WAREHOUSES_PER_PRODUCT_PER_STORE
-              + ") for store '"
-              + storeIdentifier
-              + "'.",
-          400);
-    }
+    boolean warehouseAlreadyCarriesProduct =
+        existing.map(f -> f.productIdentifiers.contains(productIdentifier)).orElse(false);
 
-    // --- Constraint 3: Max 5 product types per warehouse ---
-    List<DbWarehouseFulfillment> warehouseLinks =
-        fulfillmentRepository.findByWarehouse(warehouseCode);
-    Set<String> allProductsInWarehouse =
-        warehouseLinks.stream()
-            .flatMap(f -> f.productIdentifiers.stream())
-            .collect(Collectors.toSet());
-    if (!allProductsInWarehouse.contains(productIdentifier)
-        && allProductsInWarehouse.size() >= WarehouseFulfillment.MAX_PRODUCT_TYPES_PER_WAREHOUSE) {
-      throw new WebApplicationException(
-          "Warehouse '"
-              + warehouseCode
-              + "' already stores the maximum number of product types ("
-              + WarehouseFulfillment.MAX_PRODUCT_TYPES_PER_WAREHOUSE
-              + ").",
-          400);
-    }
+    // Constraint 1: max warehouses per store
+    fulfillmentValidator.validateMaxWarehousesPerStore(warehouseCode, storeIdentifier, forStore);
+
+    // Constraint 2: max warehouses per product per store
+    fulfillmentValidator.validateMaxWarehousesPerProductPerStore(
+        warehouseCode,
+        storeIdentifier,
+        productIdentifier,
+        forStore,
+        warehouseAlreadyCarriesProduct);
+
+    // Constraint 3: max product types per warehouse
+    fulfillmentValidator.validateMaxProductTypesPerWarehouse(
+        warehouseCode, productIdentifier, forWarehouse, warehouseAlreadyCarriesProduct);
 
     // All constraints satisfied — upsert the fulfillment link
-    DbWarehouseFulfillment fulfillment =
-        fulfillmentRepository
-            .findByWarehouseAndStore(warehouseCode, storeIdentifier)
-            .orElseGet(
-                () -> {
-                  var newLink = new DbWarehouseFulfillment();
-                  newLink.warehouseCode = warehouseCode;
-                  newLink.storeIdentifier = storeIdentifier;
-                  fulfillmentRepository.persist(newLink);
-                  return newLink;
-                });
+    WarehouseFulfillment fulfillment =
+        existing.orElseGet(() -> new WarehouseFulfillment(warehouseCode, storeIdentifier));
 
     if (!fulfillment.productIdentifiers.contains(productIdentifier)) {
       fulfillment.productIdentifiers.add(productIdentifier);
     }
 
-    return fulfillmentRepository.toDomain(fulfillment);
+    return fulfillmentStore.save(fulfillment);
   }
 }

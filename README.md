@@ -270,6 +270,19 @@ tests/
 
 ---
 
+## Application Screenshots & Results
+
+Screenshots of the running application, Swagger UI, API executions, and JaCoCo coverage reports are stored in the [`result/`](result/) directory:
+
+- 📑 **[Swagger UI Interactive Docs](result/swagger_ui.jpg)** (`http://localhost:8080/q/swagger-ui/`)
+- 📦 **[Warehouse API Response](result/warehouse_api.jpg)** (`GET /warehouse`)
+- 🏪 **[Store Event Observer Execution](result/store_api.jpg)** (`POST /store`)
+- 📊 **[JaCoCo 96% Coverage Report](result/coverage_report.jpg)** (`target/site/jacoco/index.html`)
+
+See [`result/README.md`](result/README.md) for full visual documentation.
+
+---
+
 ## CI/CD Pipeline
 
 GitHub Actions runs on every push/PR to `main`:
